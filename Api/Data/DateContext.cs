@@ -1,4 +1,5 @@
 ﻿using Api.Data.Entities;
+using Api.Data.TypesConventions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Data
@@ -11,5 +12,12 @@ namespace Api.Data
         }
 
         public DbSet<AppUser> Users { get; set; }
+
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            base.ConfigureConventions(configurationBuilder);
+            configurationBuilder.Properties<DateOnly>()
+                .HaveConversion<DateOnlyConverter>();
+        }
     }
 }

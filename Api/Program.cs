@@ -1,7 +1,14 @@
 
 using Api.Data;
+using Api.Data.Seeding;
+using Api.Extensions;
+using Api.Middlewares;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Api
 {
@@ -14,13 +21,24 @@ namespace Api
             #region Configure Services
             // Add services to the container.
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddNewtonsoftJson(options =>
+                {
+                    options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+                });
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
+            // allow di for context
             builder.Services.AddDbContext<DateContext>(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            builder.Services.AddApplicationServices(builder.Configuration);
+            builder.Services.AddAuthenticationServices(builder.Configuration);
+
+            //allow cors for client app
+            builder.Services.AddCors();
             #endregion
 
             var app = builder.Build();
@@ -44,7 +62,7 @@ namespace Api
                 await DateContext.Database.MigrateAsync();
                 //await IdentityDbContext.Database.MigrateAsync();
 
-                //await ApplicationContextSeed.SeedAsync(DbContext, LoggerFactory);
+                await UserSeeding.SeedAsync(DateContext, LoggerFactory);
                 //await AppIdentityDbContextSeeding.SeedUserAsync(UserManager);
 
             }
@@ -56,22 +74,30 @@ namespace Api
 
             #endregion
 
+
             #region  Configure the HTTP request pipeline.
+            app.UseMiddleware<ExceptionMiddleware>();
+
             if (app.Environment.IsDevelopment())
-                {
+             {
                     app.UseSwagger();
                     app.UseSwaggerUI();
-                }
+             }
+                app.UseRouting();
+                app.UseStaticFiles();
+                app.UseHttpsRedirection();  // convert any protocol to https protocol for more security
 
-                app.UseHttpsRedirection();
-
+                app.UseCors(cors => cors.AllowAnyHeader().AllowAnyMethod().WithOrigins("https://localhost:4200")); 
+            
+                app.UseAuthentication();
                 app.UseAuthorization();
 
 
                 app.MapControllers();
 
-                app.Run();
             #endregion
+
+             app.Run();
         }
     }
 }
